@@ -8,12 +8,37 @@ from tkinter import ttk, filedialog, messagebox
 from PIL import Image, ImageTk
 import os
 import sys
+import json
 from typing import List, Tuple, Optional
 
 from image_loader import load_image, needs_resize, resize_image, get_image_info, validate_image_path, has_transparency
 from color_selector import get_pixel_color, quantize_image_fast, color_to_hex, is_pixel_transparent
 from mesh_generator import generate_color_meshes, calculate_model_dimensions
-from exporter import export_to_3mf, export_to_3mf_separate
+from exporter import export_to_3mf, export_to_3mf_grouped
+
+
+# Config file path for saving window state
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
+
+
+def load_config() -> dict:
+    """Load configuration from file."""
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, 'r') as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+
+def save_config(config: dict):
+    """Save configuration to file."""
+    try:
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=2)
+    except Exception:
+        pass
 
 
 class ColorSwatch(tk.Frame):
@@ -602,12 +627,32 @@ def main():
 
     app = ImageTo3MFApp(root)
 
-    # Center window on screen
-    root.update_idletasks()
-    x = (root.winfo_screenwidth() - root.winfo_width()) // 2
-    y = (root.winfo_screenheight() - root.winfo_height()) // 2
-    root.geometry(f"+{x}+{y}")
+    # Load saved window geometry
+    config = load_config()
+    if 'window_geometry' in config:
+        try:
+            root.geometry(config['window_geometry'])
+        except:
+            # Fall back to default centered position
+            root.update_idletasks()
+            x = (root.winfo_screenwidth() - root.winfo_width()) // 2
+            y = (root.winfo_screenheight() - root.winfo_height()) // 2
+            root.geometry(f"+{x}+{y}")
+    else:
+        # Center window on screen for first run
+        root.update_idletasks()
+        x = (root.winfo_screenwidth() - root.winfo_width()) // 2
+        y = (root.winfo_screenheight() - root.winfo_height()) // 2
+        root.geometry(f"+{x}+{y}")
 
+    def on_closing():
+        """Save window state before closing."""
+        config = load_config()
+        config['window_geometry'] = root.geometry()
+        save_config(config)
+        root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", on_closing)
     root.mainloop()
 
 

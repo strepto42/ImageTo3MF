@@ -45,7 +45,6 @@ def export_to_3mf(meshes: List[MeshData], output_path: str) -> bool:
     model = wrapper.CreateModel()
 
     # Create a base material group with all colors (filaments)
-    # This defines the available filaments/extruders with their colors
     mat_group = model.AddBaseMaterialGroup()
 
     # Add materials for each color (these become the filament definitions)
@@ -53,7 +52,6 @@ def export_to_3mf(meshes: List[MeshData], output_path: str) -> bool:
     for i, mesh_data in enumerate(meshes):
         r, g, b = mesh_data.color
         color = wrapper.RGBAToColor(r, g, b, 255)
-        # Name the material as "Filament N" for clarity in slicer
         mat_name = f"Filament {i + 1}"
         mat_idx = mat_group.AddMaterial(mat_name, color)
         material_indices.append(mat_idx)
@@ -66,7 +64,6 @@ def export_to_3mf(meshes: List[MeshData], output_path: str) -> bool:
 
         # Create mesh object
         mesh_object = model.AddMeshObject()
-        # Name includes color info for easy identification
         r, g, b = mesh_data.color
         mesh_object.SetName(f"Color{i + 1}_RGB({r},{g},{b})")
 
@@ -85,7 +82,6 @@ def export_to_3mf(meshes: List[MeshData], output_path: str) -> bool:
         mesh_objects.append(mesh_object)
 
     # Add all mesh objects as separate build items
-    # This makes them appear as individual objects in the slicer
     transform = wrapper.GetIdentityTransform()
     for mesh_object in mesh_objects:
         model.AddBuildItem(mesh_object, transform)
@@ -95,6 +91,7 @@ def export_to_3mf(meshes: List[MeshData], output_path: str) -> bool:
     writer.WriteToFile(output_path)
 
     return True
+
 
 
 def export_to_3mf_grouped(meshes: List[MeshData], output_path: str) -> bool:

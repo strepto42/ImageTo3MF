@@ -32,4 +32,5 @@ Thumbs.db
 
 # Local configuration
 *.local
+config.json
 
