@@ -108,9 +108,16 @@ class ImageTo3MFApp:
         self._load_settings()
         self._bind_events()
 
-        # Handle command line argument
+        # Handle command line argument - defer to after mainloop starts
+        self._pending_image_path = None
         if len(sys.argv) > 1:
-            self._load_image_from_path(sys.argv[1])
+            self._pending_image_path = sys.argv[1]
+
+    def load_pending_image(self):
+        """Load image specified on command line (called after mainloop starts)."""
+        if self._pending_image_path:
+            self._load_image_from_path(self._pending_image_path)
+            self._pending_image_path = None
 
     def _load_settings(self):
         """Load saved settings from config."""
@@ -118,22 +125,22 @@ class ImageTo3MFApp:
         
         # Load settings values
         if 'model_width' in config:
-            self.width_var.set(config['model_width'])
+            self.width_var.set(str(config['model_width']))
         if 'base_height' in config:
-            self.base_height_var.set(config['base_height'])
+            self.base_height_var.set(str(config['base_height']))
         if 'layer_height' in config:
-            self.layer_height_var.set(config['layer_height'])
+            self.layer_height_var.set(str(config['layer_height']))
         if 'tolerance' in config:
-            self.tolerance_var.set(config['tolerance'])
-            self.tolerance_label.configure(text=str(config['tolerance']))
+            self.tolerance_var.set(int(config['tolerance']))
+            self.tolerance_label.configure(text=str(int(config['tolerance'])))
         if 'assign_nearest' in config:
-            self.assign_nearest_var.set(config['assign_nearest'])
+            self.assign_nearest_var.set(bool(config['assign_nearest']))
         if 'optimize_mesh' in config:
-            self.optimize_var.set(config['optimize_mesh'])
-        
-        # Load saved colors
-        if 'selected_colors' in config:
-            self.selected_colors = [tuple(c) for c in config['selected_colors']]
+            self.optimize_var.set(bool(config['optimize_mesh']))
+
+        # Load saved colors (only if non-empty)
+        if 'selected_colors' in config and config['selected_colors']:
+            self.selected_colors = [tuple(c) for c in config['selected_colors'] if len(c) == 3]
             self._update_color_swatches()
             self._update_buttons()
 
@@ -168,7 +175,7 @@ class ImageTo3MFApp:
         canvas_frame = ttk.Frame(left_frame)
         canvas_frame.pack(fill=tk.BOTH, expand=True)
 
-        self.canvas = tk.Canvas(canvas_frame, bg='#404040', cursor='crosshair')
+        self.canvas = tk.Canvas(canvas_frame, bg='#404040', cursor='crosshair', takefocus=False)
         v_scroll = ttk.Scrollbar(canvas_frame, orient=tk.VERTICAL, command=self.canvas.yview)
         h_scroll = ttk.Scrollbar(canvas_frame, orient=tk.HORIZONTAL, command=self.canvas.xview)
 
@@ -217,20 +224,20 @@ class ImageTo3MFApp:
         # Model width
         ttk.Label(settings_frame, text="Model Width (mm):").pack(anchor=tk.W)
         self.width_var = tk.StringVar(value="100")
-        width_entry = ttk.Entry(settings_frame, textvariable=self.width_var, width=10)
-        width_entry.pack(anchor=tk.W, pady=(0, 5))
+        self.width_entry = tk.Entry(settings_frame, textvariable=self.width_var, width=15)
+        self.width_entry.pack(anchor=tk.W, pady=(0, 5), fill=tk.X)
 
         # Base height
         ttk.Label(settings_frame, text="Base Height (mm):").pack(anchor=tk.W)
         self.base_height_var = tk.StringVar(value="2.0")
-        base_entry = ttk.Entry(settings_frame, textvariable=self.base_height_var, width=10)
-        base_entry.pack(anchor=tk.W, pady=(0, 5))
+        self.base_height_entry = tk.Entry(settings_frame, textvariable=self.base_height_var, width=15)
+        self.base_height_entry.pack(anchor=tk.W, pady=(0, 5), fill=tk.X)
 
         # Layer height
         ttk.Label(settings_frame, text="Color Layer Height (mm):").pack(anchor=tk.W)
         self.layer_height_var = tk.StringVar(value="1.0")
-        layer_entry = ttk.Entry(settings_frame, textvariable=self.layer_height_var, width=10)
-        layer_entry.pack(anchor=tk.W, pady=(0, 5))
+        self.layer_height_entry = tk.Entry(settings_frame, textvariable=self.layer_height_var, width=15)
+        self.layer_height_entry.pack(anchor=tk.W, pady=(0, 5), fill=tk.X)
 
         # Color tolerance
         ttk.Label(settings_frame, text="Color Tolerance:").pack(anchor=tk.W)
@@ -332,16 +339,6 @@ class ImageTo3MFApp:
             self.original_image = load_image(file_path)
             self.image_path = file_path
 
-            # Check if resize is needed
-            if needs_resize(self.original_image):
-                result = messagebox.askyesno(
-                    "Large Image",
-                    f"Image is {self.original_image.width}x{self.original_image.height} pixels.\n"
-                    "Large images may be slow to process.\n\n"
-                    "Would you like to resize it to max 1000px?"
-                )
-                if result:
-                    self.original_image = resize_image(self.original_image)
 
             self.display_image = self.original_image.copy()
             self._display_current_image()
@@ -353,8 +350,7 @@ class ImageTo3MFApp:
                 info_text += "\n(Has transparency)"
             self.image_info_var.set(info_text)
 
-            # Reset state
-            self.selected_colors = []
+            # Reset quantized state but keep selected colors
             self.quantized_image = None
             self.color_map = None
             self._update_color_swatches()
@@ -701,6 +697,11 @@ def main():
         root.destroy()
 
     root.protocol("WM_DELETE_WINDOW", on_closing)
+    
+    # Load command line image after mainloop starts
+    if app._pending_image_path:
+        root.after(100, app.load_pending_image)
+    
     root.mainloop()
 
 
