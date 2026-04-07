@@ -105,11 +105,54 @@ class ImageTo3MFApp:
         self.display_scale = 1.0
 
         self._setup_ui()
+        self._load_settings()
         self._bind_events()
 
         # Handle command line argument
         if len(sys.argv) > 1:
             self._load_image_from_path(sys.argv[1])
+
+    def _load_settings(self):
+        """Load saved settings from config."""
+        config = load_config()
+        
+        # Load settings values
+        if 'model_width' in config:
+            self.width_var.set(config['model_width'])
+        if 'base_height' in config:
+            self.base_height_var.set(config['base_height'])
+        if 'layer_height' in config:
+            self.layer_height_var.set(config['layer_height'])
+        if 'tolerance' in config:
+            self.tolerance_var.set(config['tolerance'])
+            self.tolerance_label.configure(text=str(config['tolerance']))
+        if 'assign_nearest' in config:
+            self.assign_nearest_var.set(config['assign_nearest'])
+        if 'optimize_mesh' in config:
+            self.optimize_var.set(config['optimize_mesh'])
+        
+        # Load saved colors
+        if 'selected_colors' in config:
+            self.selected_colors = [tuple(c) for c in config['selected_colors']]
+            self._update_color_swatches()
+            self._update_buttons()
+
+    def save_settings(self):
+        """Save current settings to config."""
+        config = load_config()
+        
+        # Save settings values
+        config['model_width'] = self.width_var.get()
+        config['base_height'] = self.base_height_var.get()
+        config['layer_height'] = self.layer_height_var.get()
+        config['tolerance'] = self.tolerance_var.get()
+        config['assign_nearest'] = self.assign_nearest_var.get()
+        config['optimize_mesh'] = self.optimize_var.get()
+        
+        # Save selected colors
+        config['selected_colors'] = [list(c) for c in self.selected_colors]
+        
+        save_config(config)
 
     def _setup_ui(self):
         """Set up the user interface."""
@@ -646,10 +689,15 @@ def main():
         root.geometry(f"+{x}+{y}")
 
     def on_closing():
-        """Save window state before closing."""
+        """Save window state and settings before closing."""
+        # Save all app settings
+        app.save_settings()
+        
+        # Save window geometry
         config = load_config()
         config['window_geometry'] = root.geometry()
         save_config(config)
+        
         root.destroy()
 
     root.protocol("WM_DELETE_WINDOW", on_closing)

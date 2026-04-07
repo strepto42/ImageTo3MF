@@ -20,11 +20,6 @@ build/
 dist/
 *.egg-info/
 
-# Test outputs
-*.3mf
-test_image.png
-test_logo.png
-test_transparent.png
 
 # OS files
 .DS_Store
